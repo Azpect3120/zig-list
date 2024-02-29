@@ -15,11 +15,14 @@ const MAX: u32 = 100000;
 var LEN: u32 = 0;
 var tasks: [MAX]Task = undefined;
 var tasks_buffer: [MAX][64]u8 = undefined;
+const PATH: String = "$HOME/.config/zig-list.json";
 
 pub fn main() !void {
     const stdin = std.io.getStdIn();
     const stdout = std.io.getStdOut();
     var buffer: [100]u8 = undefined;
+
+    try readFile();
 
     while (true) {
         try stdout.writer().print("Enter a command: ", .{});
@@ -58,13 +61,27 @@ pub fn main() !void {
     }
 }
 
-fn readFile() void {}
+/// Read the file and return its contents
+fn readFile() !void {
+    var file: std.fs.File = undefined;
+    file = std.fs.openFileAbsolute("/home/azpect/.config/zig-list.json", .{ .mode = .read_write }) catch |err| {
+        if (@TypeOf(err) == std.fs.File.OpenError) {
+            file = try std.fs.createFileAbsolute("/home/azpect/.config/zig-list.json", .{
+                .read = true,
+            });
+            const bytes_written = try file.writeAll("[]");
+            _ = bytes_written;
+            return;
+        }
+    };
+    defer file.close();
+    try file.seekTo(0);
+    const buf_size = 1024;
+    var buffer: [buf_size]u8 = undefined;
+    const bytes_read = try file.readAll(buffer[0..buf_size]);
+}
 
 fn writeFile() void {}
-
-fn fileExists(path: String) !bool {
-    _ = path;
-}
 
 /// Reads a line from a reader
 fn readLine(reader: anytype, buffer: []u8) !?String {
