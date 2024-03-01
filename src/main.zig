@@ -6,7 +6,7 @@ const String: type = []const u8;
 /// Task data structure
 const Task = struct {
     id: u32 = 0,
-    title: String,
+    title: String = "",
     completed: bool = false,
 };
 
@@ -21,6 +21,11 @@ pub fn main() !void {
     const stdin = std.io.getStdIn();
     const stdout = std.io.getStdOut();
     var buffer: [100]u8 = undefined;
+
+    addTask("Task 1", false);
+    addTask("Task 2", false);
+    addTask("Task 3", false);
+    addTask("Task 4", false);
 
     try readFile();
 
@@ -79,9 +84,52 @@ fn readFile() !void {
     const buf_size = 1024;
     var buffer: [buf_size]u8 = undefined;
     const bytes_read = try file.readAll(buffer[0..buf_size]);
+
+    try std.io.getStdOut().writer().print("JSON: {s}\n", .{buffer[0..bytes_read]});
+
+    const tasks_from_file: []Task = try parseTasks(buffer[0..bytes_read]);
+    for (tasks_from_file) |task| {
+        addTask(task.title, task.completed);
+    }
+
+    // var buf: [1024]u8 = undefined;
+    // var fba = std.heap.FixedBufferAllocator.init(&buf);
+    // var string = std.ArrayList(u8).init(fba.allocator());
+
+    // try std.json.stringify(tasks[0..LEN], .{}, string.writer());
+    // try std.io.getStdOut().writer().print("{s}\n", .{string.items});
+
+    // const allocator = std.heap.page_allocator;
+    // const json = try std.json.parseFromSlice([]Task, allocator, string.items, .{});
+    // defer json.deinit();
+    // const t = @TypeOf(json.value);
+    // std.debug.print("Type: {}\n", .{t});
+    // std.debug.print("{any}\n", .{json.value});
+
+    // var buf_2: [1024]u8 = undefined;
+    // var fba_2 = std.heap.FixedBufferAllocator.init(&buf_2);
+    // var string_2 = std.ArrayList(u8).init(fba_2.allocator());
+
+    // try std.json.stringify(tasks[0..LEN], .{}, string_2.writer());
+    // try std.io.getStdOut().writer().print("{s}\n", .{string_2.items});
 }
 
 fn writeFile() void {}
+
+/// Parse the tasks from a string
+fn parseTasks(tasks_string: String) ![]Task {
+    const allocator = std.heap.page_allocator;
+    const json = try std.json.parseFromSlice([]Task, allocator, tasks_string, .{});
+    defer json.deinit();
+    return json.value;
+}
+
+/// Stringify the tasks
+fn stringifyTasks(allocator: anytype, task_list: []Task) !String {
+    var string = std.ArrayList(u8).init(allocator);
+    try std.json.stringify(task_list[0..LEN], .{}, string.writer());
+    return string.items;
+}
 
 /// Reads a line from a reader
 fn readLine(reader: anytype, buffer: []u8) !?String {
