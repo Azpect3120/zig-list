@@ -15,19 +15,22 @@ const MAX: u32 = 100000;
 var LEN: u32 = 0;
 var tasks: [MAX]Task = undefined;
 var tasks_buffer: [MAX][64]u8 = undefined;
-const PATH: String = "$HOME/.config/zig-list.json";
 
 pub fn main() !void {
     const stdin = std.io.getStdIn();
     const stdout = std.io.getStdOut();
     var buffer: [100]u8 = undefined;
 
-    addTask("Task 1", false);
-    addTask("Task 2", false);
-    addTask("Task 3", false);
-    addTask("Task 4", false);
+    tasks = try readFile();
+    // addTask("Task 1", false);
+    // addTask("Task 2", false);
+    // addTask("Task 3", false);
 
-    try readFile();
+    const task_string = try stringifyTasks();
+    std.debug.print("{s}\n", .{task_string});
+    try writeFile(task_string);
+
+    // try readFile();
 
     while (true) {
         try stdout.writer().print("Enter a command: ", .{});
@@ -67,16 +70,16 @@ pub fn main() !void {
 }
 
 /// Read the file and return its contents
-fn readFile() !void {
+fn readFile() ![MAX]Task {
     var file: std.fs.File = undefined;
     file = std.fs.openFileAbsolute("/home/azpect/.config/zig-list.json", .{ .mode = .read_write }) catch |err| {
         if (@TypeOf(err) == std.fs.File.OpenError) {
             file = try std.fs.createFileAbsolute("/home/azpect/.config/zig-list.json", .{
                 .read = true,
             });
-            const bytes_written = try file.writeAll("[]");
-            _ = bytes_written;
-            return;
+            // const bytes_written = try file.writeAll("[]");
+            // _ = bytes_written;
+            return undefined;
         }
     };
     defer file.close();
@@ -85,49 +88,38 @@ fn readFile() !void {
     var buffer: [buf_size]u8 = undefined;
     const bytes_read = try file.readAll(buffer[0..buf_size]);
 
-    try std.io.getStdOut().writer().print("JSON: {s}\n", .{buffer[0..bytes_read]});
-
-    const tasks_from_file: []Task = try parseTasks(buffer[0..bytes_read]);
-    for (tasks_from_file) |task| {
-        addTask(task.title, task.completed);
-    }
-
-    // var buf: [1024]u8 = undefined;
-    // var fba = std.heap.FixedBufferAllocator.init(&buf);
-    // var string = std.ArrayList(u8).init(fba.allocator());
-
-    // try std.json.stringify(tasks[0..LEN], .{}, string.writer());
-    // try std.io.getStdOut().writer().print("{s}\n", .{string.items});
-
-    // const allocator = std.heap.page_allocator;
-    // const json = try std.json.parseFromSlice([]Task, allocator, string.items, .{});
-    // defer json.deinit();
-    // const t = @TypeOf(json.value);
-    // std.debug.print("Type: {}\n", .{t});
-    // std.debug.print("{any}\n", .{json.value});
-
-    // var buf_2: [1024]u8 = undefined;
-    // var fba_2 = std.heap.FixedBufferAllocator.init(&buf_2);
-    // var string_2 = std.ArrayList(u8).init(fba_2.allocator());
-
-    // try std.json.stringify(tasks[0..LEN], .{}, string_2.writer());
-    // try std.io.getStdOut().writer().print("{s}\n", .{string_2.items});
+    const tasks_from_file: [MAX]Task = try parseTasks(buffer[0..bytes_read]);
+    return tasks_from_file;
 }
 
-fn writeFile() void {}
+/// Write the tasks to the config file
+fn writeFile(task_string: String) !void {
+    var file: std.fs.File = undefined;
+    file = std.fs.openFileAbsolute("/home/azpect/.config/zig-list.json", .{ .mode = .read_write }) catch |err| {
+        if (@TypeOf(err) == std.fs.File.OpenError) {
+            file = try std.fs.createFileAbsolute("/home/azpect/.config/zig-list.json", .{
+                .read = true,
+            });
+            return;
+        }
+    };
+    // const task_string = try stringifyTasks();
+    try file.writeAll(task_string);
+}
 
 /// Parse the tasks from a string
-fn parseTasks(tasks_string: String) ![]Task {
+fn parseTasks(tasks_string: String) ![MAX]Task {
     const allocator = std.heap.page_allocator;
-    const json = try std.json.parseFromSlice([]Task, allocator, tasks_string, .{});
+    const json = try std.json.parseFromSlice([MAX]Task, allocator, tasks_string, .{});
     defer json.deinit();
     return json.value;
 }
 
 /// Stringify the tasks
-fn stringifyTasks(allocator: anytype, task_list: []Task) !String {
+fn stringifyTasks() !String {
+    const allocator = std.heap.page_allocator;
     var string = std.ArrayList(u8).init(allocator);
-    try std.json.stringify(task_list[0..LEN], .{}, string.writer());
+    try std.json.stringify(tasks[0..LEN], .{}, string.writer());
     return string.items;
 }
 
